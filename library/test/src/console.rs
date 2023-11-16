@@ -315,8 +315,10 @@ pub fn run_tests_console(opts: &TestOpts, tests: Vec<TestDescAndFn>) -> io::Resu
 
     // Prevent the usage of `Instant` in some cases:
     // - It's currently not supported for wasm targets.
-    let is_instant_unsupported =
-        (cfg!(target_family = "wasm") && !cfg!(target_os = "wasi")) || cfg!(target_os = "zkvm");
+    // - We disable it for miri because it's not available when isolation is enabled.
+    let is_instant_unsupported = (cfg!(target_family = "wasm") && !cfg!(target_os = "wasi"))
+        || cfg!(target_os = "zkvm")
+        || cfg!(miri);
 
     let start_time = (!is_instant_unsupported).then(Instant::now);
     run_tests(opts, tests, |x| on_test_event(&x, &mut st, &mut *out))?;
