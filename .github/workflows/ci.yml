@@ -2,8 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ risc0 ]
+    branches: [risc0]
   pull_request:
+    branches:
       - "**"
   workflow_call:
   workflow_dispatch:
@@ -60,7 +61,7 @@ jobs:
         with:
           fetch-depth: 2
       - name: configure the PR in which the error message will be posted
-        run: "echo \"[CI_PR_NUMBER=$num]\""
+        run: 'echo "[CI_PR_NUMBER=$num]"'
         env:
           num: "${{ github.event.number }}"
         if: "success() && github.event_name == 'pull_request'"
@@ -155,4 +156,86 @@ jobs:
 
   try-success:
     needs: [job]
-    if: "success() && github.event_name == 'push' && (github.ref == 'refs/heads/try' || github.ref == 'refs/heads/try-perf') &&
+    if: "success() && github.event_name == 'push' && (github.ref == 'refs/heads/try' || github.ref == 'refs/heads/try-perf') && github.repository == 'rust-lang-ci/rust'"
+    steps:
+      - name: mark the job as a success
+        run: exit 0
+        shell: bash
+    name: bors build finished
+    runs-on: ubuntu-latest
+
+  try-failure:
+    needs: [job]
+    if: "!success() && github.event_name == 'push' && (github.ref == 'refs/heads/try' || github.ref == 'refs/heads/try-perf') && github.repository == 'rust-lang-ci/rust'"
+    steps:
+      - name: mark the job as a failure
+        run: exit 1
+        shell: bash
+    name: bors build finished
+    runs-on: ubuntu-latest
+
+  auto-success:
+    needs: [job]
+    if: "success() && github.event_name == 'push' && github.ref == 'refs/heads/auto' && github.repository == 'rust-lang-ci/rust'"
+    steps:
+      - name: mark the job as a success
+        run: exit 0
+        shell: bash
+    name: bors build finished
+    runs-on: ubuntu-latest
+
+  auto-failure:
+    needs: [job]
+    if: "!success() && github.event_name == 'push' && github.ref == 'refs/heads/auto' && github.repository == 'rust-lang-ci/rust'"
+    steps:
+      - name: mark the job as a failure
+        run: exit 1
+        shell: bash
+    name: bors build finished
+    runs-on: ubuntu-latest
+
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macOS
+            arch: ARM64
+            triple: aarch64-apple-darwin
+          - os: Linux
+            arch: X64
+            triple: x86_64-unknown-linux-gnu
+    runs-on: [self-hosted, prod, "${{ matrix.os }}", "${{ matrix.arch }}"]
+    steps:
+      - name: Install Rust
+        uses: risc0/actions-rs-toolchain@v1
+        with:
+          toolchain: stable
+      - uses: lukka/get-cmake@v3.27.4
+
+      - name: Check out risc0/rust
+        uses: actions/checkout@v3
+        with:
+          submodules: "recursive"
+          path: rust
+          fetch-depth: 0
+
+      - name: Check out risc0/risc0
+        uses: actions/checkout@v3
+        with:
+          repository: risc0/risc0
+          ref: main
+          path: risc0
+
+      - name: Build
+        run: GITHUB_ACTIONS=false RISC0_BUILD_DIR=$GITHUB_WORKSPACE cargo run --bin cargo-risczero -- risczero build-toolchain
+        working-directory: risc0
+
+      - name: Archive build output
+        uses: actions/upload-artifact@v3
+        with:
+          name: rust-toolchain-${{ matrix.triple }}
+          path: |
+            rust/build/${{ matrix.triple }}/stage2
+            !rust/build/${{ matrix.triple }}/stage2/lib/rustlib/src
+            !rust/build/${{ matrix.triple }}/stage2/lib/rustlib/rustc-src
