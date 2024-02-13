@@ -94,7 +94,7 @@ const EXTRA_CHECK_CFGS: &[(Option<Mode>, &str, Option<&[&'static str]>)] = &[
     /* Extra values not defined in the built-in targets yet, but used in std */
     (Some(Mode::Std), "target_env", Some(&["libnx", "p2"])),
     (Some(Mode::Std), "target_os", Some(&["visionos", "zkvm"])),
-    (Some(Mode::Std), "target_vendor", Some(&["risc0", "curta"])),
+    (Some(Mode::Std), "target_vendor", Some(&["risc0", "succinct"])),
     (Some(Mode::Std), "target_arch", Some(&["arm64ec", "spirv", "nvptx", "xtensa", "asmjs"])),
     (Some(Mode::ToolStd), "target_os", Some(&["visionos"])),
     /* Extra names used by dependencies */
