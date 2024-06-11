@@ -85,5 +85,12 @@ pub fn abort_internal() -> ! {
 }
 
 pub fn hashmap_random_keys() -> (u64, u64) {
-    (1, 2)
+    let mut buf = [0u8; 16];
+    unsafe {
+        abi::sys_rand(buf.as_mut_ptr(), buf.len());
+    };
+
+    let a = u64::from_le_bytes(buf[0..8].try_into().unwrap());
+    let b = u64::from_le_bytes(buf[8..16].try_into().unwrap());
+    (a, b)
 }

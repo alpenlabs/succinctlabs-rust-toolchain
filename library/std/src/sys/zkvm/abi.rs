@@ -34,7 +34,7 @@ extern "C" {
         buf: *const u8,
         count: u32,
     );
-    pub fn sys_rand(recv_buf: *mut u32, words: usize);
+    pub fn sys_rand(recv_buf: *mut u8, words: usize);
     pub fn sys_panic(msg_ptr: *const u8, len: usize) -> !;
     pub fn sys_log(msg_ptr: *const u8, len: usize);
     pub fn sys_cycle_count() -> usize;
