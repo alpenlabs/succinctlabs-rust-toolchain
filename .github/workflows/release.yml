@@ -18,6 +18,12 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           path: artifacts
+
+      - name: List artifact contents
+        run: |
+          echo "Listing artifacts directory:"
+          ls -R artifacts
+
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -27,7 +33,12 @@ jobs:
             tar xvz  --strip-components=2 --exclude=man
           chmod +x ./gh
           mkdir tars
-          mv ./artifacts/*/*.tar.gz tars/
+          mv ./artifacts/*/*.tar.gz tars/ || mv ./artifacts/*.tar.gz tars/ || echo "No .tar.gz files found"
 
-          ./gh release create --repo "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" ./tars/* || \
-          ./gh release upload --repo "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" ./tars/*
+          if [ "$(ls -A tars)" ]; then
+            ./gh release create --repo "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" ./tars/* || \
+            ./gh release upload --repo "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" ./tars/*
+          else
+            echo "No files to release. Exiting."
+            exit 1
+          fi
