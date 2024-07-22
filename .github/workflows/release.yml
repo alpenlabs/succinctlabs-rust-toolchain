@@ -33,7 +33,7 @@ jobs:
             tar xvz  --strip-components=2 --exclude=man
           chmod +x ./gh
           mkdir tars
-          mv ./artifacts/*/*.tar.gz tars/ || mv ./artifacts/*.tar.gz tars/ || echo "No .tar.gz files found"
+          find artifacts -name "*.tar.gz" -exec mv {} tars/ \;
 
           if [ "$(ls -A tars)" ]; then
             ./gh release create --repo "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME" ./tars/* || \
