@@ -15,17 +15,10 @@
 
 ---
 name: CI
-"on":
-  push:
-    branches:
-      - auto
-      - try
-      - try-perf
-      - automation/bors/try
-      - master
-  pull_request:
-    branches:
-      - "**"
+on:
+  workflow_call:
+  workflow_dispatch:
+
 permissions:
   contents: read
   packages: write
@@ -85,7 +78,7 @@ jobs:
         with:
           fetch-depth: 2
       - name: configure the PR in which the error message will be posted
-        run: "echo \"[CI_PR_NUMBER=$num]\""
+        run: 'echo "[CI_PR_NUMBER=$num]"'
         env:
           num: "${{ github.event.number }}"
         if: "success() && github.event_name == 'pull_request'"
