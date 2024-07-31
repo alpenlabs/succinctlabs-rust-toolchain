@@ -4,8 +4,6 @@
 
 Succinct's Zero Knowledge Virtual Machine (zkVM) implementing the RV32IM instruction set.
 
-## Target maintainers
-
 ## Background
 
 This target is an execution environment to produce a proof of execution of
