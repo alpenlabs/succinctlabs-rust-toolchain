@@ -12,37 +12,37 @@ const WORD_SIZE: usize = core::mem::size_of::<u32>();
 pub mod alloc;
 #[path = "../zkvm/args.rs"]
 pub mod args;
-#[path = "../unix/cmath.rs"]
+#[path = "../zkvm/cmath.rs"]
 pub mod cmath;
 pub mod env;
-#[path = "../unsupported/fs.rs"]
+#[path = "../pal/unsupported/fs.rs"]
 pub mod fs;
-#[path = "../unsupported/io.rs"]
+#[path = "../pal/unsupported/io.rs"]
 pub mod io;
-#[path = "../unsupported/net.rs"]
+#[path = "../pal/unsupported/net.rs"]
 pub mod net;
-#[path = "../unsupported/once.rs"]
+#[path = "../sync/once/mod.rs"]
 pub mod once;
 pub mod os;
-#[path = "../unix/os_str.rs"]
+#[path = "../os_str/mod.rs"]
 pub mod os_str;
-#[path = "../unix/path.rs"]
+#[path = "../pal/unix/path.rs"]
 pub mod path;
-#[path = "../unsupported/pipe.rs"]
+#[path = "../pal/unsupported/pipe.rs"]
 pub mod pipe;
-#[path = "../unsupported/process.rs"]
+#[path = "../pal/unsupported/process.rs"]
 pub mod process;
 pub mod stdio;
 pub mod thread_local_key;
-#[path = "../unsupported/time.rs"]
+#[path = "../pal/unsupported/time.rs"]
 pub mod time;
 
-#[path = "../unsupported/locks/mod.rs"]
+#[path = "../pal/unsupported/locks/mod.rs"]
 pub mod locks;
-#[path = "../unsupported/thread.rs"]
+#[path = "../pal/unsupported/thread.rs"]
 pub mod thread;
 
-#[path = "../unsupported/thread_parking.rs"]
+#[path = "../pal/unsupported/thread_parking.rs"]
 pub mod thread_parking;
 
 mod abi;
