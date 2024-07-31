@@ -189,57 +189,187 @@ jobs:
     name: bors build finished
     runs-on: ubuntu-latest
 
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-14
-            triple: aarch64-apple-darwin
-          - os: macos-13
-            triple: x86_64-apple-darwin
-          - os: buildjet-32vcpu-ubuntu-2004
-            triple: x86_64-unknown-linux-gnu
-          - os: buildjet-32vcpu-ubuntu-2204-arm
-            triple: aarch64-unknown-linux-gnu
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Install nightly toolchain
-        id: rustc-toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly-2024-01-25
-          default: true
+build:
+  strategy:
+    fail-fast: false
+    matrix:
+      include:
+        - os: macos-14
+          triple: aarch64-apple-darwin
+        - os: macos-13
+          triple: x86_64-apple-darwin
+        - os: buildjet-32vcpu-ubuntu-2004
+          triple: x86_64-unknown-linux-gnu
+        - os: buildjet-32vcpu-ubuntu-2204-arm
+          triple: aarch64-unknown-linux-gnu
+  runs-on: ${{ matrix.os }}
+  steps:
+    - name: Install nightly toolchain
+      id: rustc-toolchain
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly-2024-01-25
+        default: true
 
-      - uses: lukka/get-cmake@v3.27.4
+    - uses: lukka/get-cmake@v3.27.4
 
-      - name: Show rust version
-        run: |
-          cargo version
-          rustup toolchain list
+    - name: Show rust version
+      run: |
+        cargo version
+        rustup toolchain list
 
-      - name: Check out succinctlabs/rust
-        uses: actions/checkout@v3
-        with:
-          submodules: "recursive"
-          path: rust
-          fetch-depth: 0
+    - name: Check out succinctlabs/rust
+      uses: actions/checkout@v3
+      with:
+        submodules: "recursive"
+        path: rust
+        fetch-depth: 0
 
-      - name: Check out succinctlabs/sp1
-        uses: actions/checkout@v3
-        with:
-          repository: succinctlabs/sp1
-          ref: dev
-          path: sp1
+    - name: Check out succinctlabs/sp1
+      uses: actions/checkout@v3
+      with:
+        repository: succinctlabs/sp1
+        ref: dev
+        path: sp1
 
-      - name: Build
-        run: |
-          cd sp1/cli
-          pwd
-          GITHUB_ACTIONS=false SP1_BUILD_DIR=$GITHUB_WORKSPACE cargo run --bin cargo-prove -- prove build-toolchain
+    - name: Install RISC-V Toolchain
+      run: |
+        mkdir -p ~/.sp1/bin
+        cat << 'EOF' > install_toolchain.sh
+        #!/bin/bash
+        set -e
 
-      - name: Archive build output
-        uses: actions/upload-artifact@v3
-        with:
-          name: rust-toolchain-${{ matrix.triple }}
-          path: sp1/cli/rust-toolchain-${{ matrix.triple }}.tar.gz
+        SP1_DIR=~/.sp1
+        SP1_BIN_DIR=$SP1_DIR/bin
+
+        determine_platform() {
+          case "$(uname -s)" in
+            Linux*) PLATFORM=linux ;;
+            Darwin*) PLATFORM=darwin ;;
+            MINGW*|MSYS*|CYGWIN*) PLATFORM=win32 ;;
+            *) echo "Unsupported platform" >&2; exit 1 ;;
+          esac
+        }
+
+        determine_architecture() {
+          case "$(uname -m)" in
+            x86_64) ARCHITECTURE=amd64 ;;
+            arm64|aarch64) ARCHITECTURE=arm64 ;;
+            *) echo "Unsupported architecture" >&2; exit 1 ;;
+          esac
+        }
+
+        download() {
+          if command -v curl &>/dev/null; then
+            curl -LsSf "$1" -o "$2"
+          elif command -v wget &>/dev/null; then
+            wget -q "$1" -O "$2"
+          else
+            echo "Neither curl nor wget is available" >&2
+            exit 1
+          fi
+        }
+
+        ensure() {
+          "$@"
+          if [ $? -ne 0 ]; then
+            echo "Command failed: $*" >&2
+            exit 1
+          fi
+        }
+
+        say() {
+          echo "$@" >&2
+        }
+
+        err() {
+          say "$@"
+          exit 1
+        }
+
+        install_c_toolchain() {
+          say "installing C++ toolchain for RISC-V"
+
+          determine_platform
+          determine_architecture
+
+          case $PLATFORM in
+            linux)
+              case $ARCHITECTURE in
+                amd64) TOOLCHAIN_URL="https://github.com/risc0/toolchain/releases/download/2022.03.25/riscv32im-linux-x86_64.tar.xz" ;;
+                *) err "unsupported architecture for Linux: $ARCHITECTURE" ;;
+              esac
+              ;;
+            darwin)
+              case $ARCHITECTURE in
+                arm64) TOOLCHAIN_URL="https://github.com/risc0/toolchain/releases/download/2022.03.25/riscv32im-osx-arm64.tar.xz" ;;
+                amd64) TOOLCHAIN_URL="https://github.com/risc0/toolchain/releases/download/2022.03.25/riscv32im-osx-x86_64.tar.xz" ;;
+                *) err "unsupported architecture for macOS: $ARCHITECTURE" ;;
+              esac
+              ;;
+            win32)
+              case $ARCHITECTURE in
+                amd64) TOOLCHAIN_URL="https://github.com/risc0/toolchain/releases/download/2022.03.25/riscv32im-windows-x86_64.tar.xz" ;;
+                *) err "unsupported architecture for Windows: $ARCHITECTURE" ;;
+              esac
+              ;;
+            *)
+              err "unsupported platform: $PLATFORM"
+              ;;
+          esac
+
+          TOOLCHAIN_ARCHIVE="/tmp/$(basename $TOOLCHAIN_URL)"
+          TOOLCHAIN_INSTALL_DIR="$SP1_DIR/riscv"
+
+          ensure download "$TOOLCHAIN_URL" "$TOOLCHAIN_ARCHIVE"
+
+          mkdir -p "$TOOLCHAIN_INSTALL_DIR"
+
+          if [ "$PLATFORM" = "win32" ]; then
+            ensure unzip "$TOOLCHAIN_ARCHIVE" -d "$TOOLCHAIN_INSTALL_DIR" >/dev/null 2>&1
+          else
+            ensure tar -xvf "$TOOLCHAIN_ARCHIVE" -C "$TOOLCHAIN_INSTALL_DIR" >/dev/null 2>&1
+          fi
+          rm -f "$TOOLCHAIN_ARCHIVE"
+
+          GCC_PATH=$(find "$TOOLCHAIN_INSTALL_DIR" -name 'riscv32-unknown-elf-gcc' -type f | head -n 1)
+          if [ -z "$GCC_PATH" ]; then
+            err "riscv32-unknown-elf-gcc not found in extracted archive"
+          fi
+          ln -sf "$GCC_PATH" "$SP1_BIN_DIR/riscv32-unknown-elf-gcc"
+
+          say "installed C++ toolchain for RISC-V"
+        }
+
+        install_c_toolchain
+        EOF
+
+        chmod +x install_toolchain.sh
+        ./install_toolchain.sh
+
+    - name: Setup CC for RISC-V
+      run: |
+        echo "PATH=$HOME/.sp1/bin:$PATH" >> $GITHUB_ENV
+        echo "CC_riscv32im_succinct_zkvm_elf=$HOME/.sp1/bin/riscv32-unknown-elf-gcc" >> $GITHUB_ENV
+        echo "CXX_riscv32im_succinct_zkvm_elf=$HOME/.sp1/bin/riscv32-unknown-elf-g++" >> $GITHUB_ENV
+        echo "AR_riscv32im_succinct_zkvm_elf=$HOME/.sp1/bin/riscv32-unknown-elf-ar" >> $GITHUB_ENV
+
+    - name: Configure Rust build
+      run: |
+        cd rust
+        cp config.toml.example config.toml
+        echo "[target.riscv32im-succinct-zkvm-elf]" >> config.toml
+        echo "cc = \"$HOME/.sp1/bin/riscv32-unknown-elf-gcc\"" >> config.toml
+        echo "cxx = \"$HOME/.sp1/bin/riscv32-unknown-elf-g++\"" >> config.toml
+        echo "ar = \"$HOME/.sp1/bin/riscv32-unknown-elf-ar\"" >> config.toml
+
+    - name: Build
+      run: |
+        cd sp1/cli
+        GITHUB_ACTIONS=false SP1_BUILD_DIR=$GITHUB_WORKSPACE cargo run --bin cargo-prove -- prove build-toolchain
+
+    - name: Archive build output
+      uses: actions/upload-artifact@v3
+      with:
+        name: rust-toolchain-${{ matrix.triple }}
+        path: sp1/cli/rust-toolchain-${{ matrix.triple }}.tar.gz
