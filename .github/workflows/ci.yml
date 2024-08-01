@@ -20,14 +20,10 @@ jobs:
             triple: aarch64-unknown-linux-gnu
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Install Rust Toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Install Rust
+        uses: risc0/actions-rs-toolchain@v1
         with:
-          toolchain: nightly-2024-04-17
-          profile: default
-          override: true
-          default: true
-          components: llvm-tools, rustc-dev
+          toolchain: stable
       - uses: lukka/get-cmake@v3.27.4
 
       - name: Show rust version
@@ -38,7 +34,7 @@ jobs:
       - name: Install SP1 toolchain
         run: |
           curl -L https://raw.githubusercontent.com/succinctlabs/sp1/mattstam/c-flags/sp1up/install | bash
-          export PATH=/home/runner/.sp1/bin:$PATH
+          export PATH=~/.sp1/bin:$PATH
           ~/.sp1/bin/sp1up --version dev --c-toolchain
           ~/.sp1/bin/cargo-prove prove --version
 
