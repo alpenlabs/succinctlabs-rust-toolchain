@@ -31,13 +31,6 @@ jobs:
           cargo version
           rustup toolchain list
 
-      - name: Install SP1 toolchain
-        run: |
-          curl -L https://raw.githubusercontent.com/succinctlabs/sp1/mattstam/c-flags/sp1up/install | bash
-          export PATH=~/.sp1/bin:$PATH
-          ~/.sp1/bin/sp1up --version dev --c-toolchain
-          ~/.sp1/bin/cargo-prove prove --version
-
       - name: Check out succinctlabs/rust
         uses: actions/checkout@v3
         with:
