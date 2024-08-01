@@ -342,7 +342,7 @@ target | std | host | notes
 [`powerpc64-ibm-aix`](platform-support/aix.md) | ? |  | 64-bit AIX (7.2 and newer)
 `riscv32gc-unknown-linux-gnu` |   |   | RISC-V Linux (kernel 5.4, glibc 2.33)
 `riscv32gc-unknown-linux-musl` |   |   | RISC-V Linux (kernel 5.4, musl 1.2.3 + RISCV32 support patches)
-[`riscv32im-risc0-zkvm-elf`](platform-support/riscv32im-risc0-zkvm-elf.md) | ? |  | RISC Zero's zero-knowledge Virtual Machine (RV32IM ISA)
+[`riscv32im-succinct-zkvm-elf`](platform-support/riscv32im-succinct-zkvm-elf.md) | ? |  | Succinct's zero-knowledge Virtual Machine (RV32IM ISA)
 [`riscv32ima-unknown-none-elf`](platform-support/riscv32-unknown-none-elf.md) | * |  | Bare RISC-V (RV32IMA ISA)
 [`riscv32imac-unknown-xous-elf`](platform-support/riscv32imac-unknown-xous-elf.md) | ? |  | RISC-V Xous (RV32IMAC ISA)
 [`riscv32imc-esp-espidf`](platform-support/esp-idf.md) | ✓ |  | RISC-V ESP-IDF
