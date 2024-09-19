@@ -37,6 +37,7 @@ jobs:
           submodules: "recursive"
           path: rust
           fetch-depth: 0
+          ref: ${{ github.ref }}
 
       - name: Check out succinctlabs/sp1
         uses: actions/checkout@v3
