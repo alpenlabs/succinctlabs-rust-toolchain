@@ -514,6 +514,11 @@ impl TargetSelection {
     pub fn is_windows(&self) -> bool {
         self.contains("windows")
     }
+
+    /// Path to the file defining the custom target, if any.
+    pub fn filepath(&self) -> Option<&Path> {
+        self.file.as_ref().map(Path::new)
+    }
 }
 
 impl fmt::Display for TargetSelection {
@@ -2388,7 +2393,11 @@ impl Config {
             .get(&target)
             .and_then(|t| t.split_debuginfo)
             .or_else(|| {
-                if self.build == target { self.rust_split_debuginfo_for_build_triple } else { None }
+                if self.build == target {
+                    self.rust_split_debuginfo_for_build_triple
+                } else {
+                    None
+                }
             })
             .unwrap_or_else(|| SplitDebuginfo::default_for_platform(target))
     }
