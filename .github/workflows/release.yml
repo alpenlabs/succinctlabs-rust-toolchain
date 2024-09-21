@@ -1,0 +1,140 @@
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+name: "Release"
+
+jobs:
+  version-info:
+    name: "Extract version info"
+    runs-on: "ubuntu-latest"
+    outputs:
+      version: ${{ steps.derive.outputs.version }}
+
+    steps:
+      - id: "derive"
+        name: "Derive version info from Git tag"
+        run: |
+          FULL_REF="${{ github.ref }}"
+          REGEX="^refs\/tags\/v(.*)$"
+          [[ $FULL_REF =~ $REGEX ]];
+
+          echo "version=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
+
+  draft-release:
+    name: "Create draft release"
+    runs-on: "ubuntu-latest"
+    needs:
+      - "version-info"
+    outputs:
+      release-id: ${{ steps.create.outputs.id }}
+
+    steps:
+      - id: "create"
+        name: "Create draft release"
+        run: |
+          ID=$(curl -L --fail "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -d '{"tag_name":"v${{ needs.version-info.outputs.version }}","name":"v${{ needs.version-info.outputs.version }}","draft":true,"generate_release_notes":true}' |
+            jq ".id")
+          echo "id=$ID" >> $GITHUB_OUTPUT
+
+  release-unix:
+    name: "Build for ${{ matrix.triple }}"
+    runs-on: "${{ matrix.os }}"
+    needs:
+      - "version-info"
+      - "draft-release"
+
+    strategy:
+      matrix:
+        include:
+          - os: "buildjet-32vcpu-ubuntu-2204"
+            triple: "x86_64-unknown-linux-gnu"
+          - os: "buildjet-32vcpu-ubuntu-2204-arm"
+            triple: "aarch64-unknown-linux-gnu"
+          - os: "macos-13"
+            triple: "x86_64-apple-darwin"
+          - os: "macos-14"
+            triple: "aarch64-apple-darwin"
+
+    steps:
+      - name: "Checkout source code"
+        uses: "actions/checkout@v3"
+        with:
+          submodules: "recursive"
+          fetch-depth: 0
+
+      - name: "Setup ninja-build"
+        if: matrix.os != 'buildjet-32vcpu-ubuntu-2204-arm'
+        uses: "seanmiddleditch/gha-setup-ninja@v5"
+
+      - name: "Setup ninja-build"
+        if: matrix.os == 'buildjet-32vcpu-ubuntu-2204-arm'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build
+
+      - name: "Setup build config"
+        run: |
+          cp ./.github/workflows/config.toml ./config.toml
+
+      - name: "Setup build env vars"
+        run: |
+          echo "CARGO_TARGET_RISCV32IM_SUCCINCT_ZKVM_ELF_RUSTFLAGS=-Cpasses=loweratomic" >> $GITHUB_ENV
+
+      - name: "Work around missing target issue"
+        run: |
+          mkdir /tmp/rustc-targets
+          touch /tmp/rustc-targets/riscv32im-succinct-zkvm-elf.json
+          echo "RUST_TARGET_PATH=/tmp/rustc-targets" >> $GITHUB_ENV
+
+      - name: "Build Rust"
+        run: |
+          ./x.py build --stage 2
+
+      - name: "Archive toolchain"
+        run: |
+          # Use `rsync` instead of `cp` due to hardlinks
+          rsync --recursive ./build/${{ matrix.triple }}/stage2-tools-bin/ ./build/${{ matrix.triple }}/stage2/bin/
+
+          tar \
+            --exclude lib/rustlib/src \
+            --exclude lib/rustlib/rustc-src \
+            -hczvf \
+            ./rust-toolchain-${{ matrix.triple }}.tar.gz \
+            -C ./build/${{ matrix.triple }}/stage2/ \
+            .
+
+      - name: "Upload workflow artifact"
+        uses: "actions/upload-artifact@v3"
+        with:
+          name: "rust-toolchain-${{ matrix.triple }}.tar.gz"
+          path: "./rust-toolchain-${{ matrix.triple }}.tar.gz"
+
+      - name: "Upload release artifact"
+        run: |
+          ARTIFACT_NAME="rust-toolchain-${{ matrix.triple }}.tar.gz"
+
+          curl -L --fail "https://uploads.github.com/repos/${GITHUB_REPOSITORY}/releases/${{ needs.draft-release.outputs.release-id }}/assets?name=${ARTIFACT_NAME}" \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary "@${ARTIFACT_NAME}"
+
+  # Disabled for debugging
+  # TODO: uncomment this job
+  # publish-release:
+  #   name: "Publish release"
+  #   runs-on: "ubuntu-latest"
+  #   needs:
+  #     - "draft-release"
+  #     - "release-unix"
+  #
+  #   steps:
+  #     - name: "Publish release"
+  #       run: |
+  #         curl -L --fail "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/${{ needs.draft-release.outputs.release-id }}" \
+  #           -X PATCH \
+  #           -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+  #           -d '{"draft":false}'
