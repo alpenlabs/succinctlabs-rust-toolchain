@@ -2494,7 +2494,11 @@ impl Config {
             .get(&target)
             .and_then(|t| t.split_debuginfo)
             .or_else(|| {
-                if self.build == target { self.rust_split_debuginfo_for_build_triple } else { None }
+                if self.build == target {
+                    self.rust_split_debuginfo_for_build_triple
+                } else {
+                    None
+                }
             })
             .unwrap_or_else(|| SplitDebuginfo::default_for_platform(target))
     }
